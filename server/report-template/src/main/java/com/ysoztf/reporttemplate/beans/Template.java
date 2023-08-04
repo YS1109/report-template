@@ -1,21 +1,33 @@
 package com.ysoztf.reporttemplate.beans;
 
 
+import com.ysoztf.reporttemplate.annotation.ReportEntityAnnotation;
+
 import javax.persistence.*;
 
 @Entity
 @Table(name = "template")
 public class Template {
     private int id;
+    @ReportEntityAnnotation(type = "dimension", displayName = "customDimension1")
     private String dimension1;
+    @ReportEntityAnnotation(type = "dimension", displayName = "customDimension2")
     private String dimension2;
+    @ReportEntityAnnotation(type = "dimension", displayName = "customDimension3")
     private String dimension3;
+    @ReportEntityAnnotation(type = "dimension", displayName = "customDimension4")
     private String dimension4;
+    @ReportEntityAnnotation(type = "dimension", displayName = "customDimension5")
     private String dimension5;
+    @ReportEntityAnnotation(type = "indicator", displayName = "customIndicator1")
     private int indicator1;
+    @ReportEntityAnnotation(type = "indicator", displayName = "customIndicator2")
     private int indicator2;
+    @ReportEntityAnnotation(type = "indicator", displayName = "customIndicator3")
     private int indicator3;
+    @ReportEntityAnnotation(type = "indicator", displayName = "customIndicator4")
     private int indicator4;
+    @ReportEntityAnnotation(type = "indicator", displayName = "customIndicator5")
     private int indicator5;
 
     @Id
