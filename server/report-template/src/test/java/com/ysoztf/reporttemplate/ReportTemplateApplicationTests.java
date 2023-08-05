@@ -6,6 +6,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 
 @SpringBootTest
 class ReportTemplateApplicationTests {
@@ -15,6 +19,15 @@ class ReportTemplateApplicationTests {
     @Test
     public void generateReportFieldsTest() {
         System.out.println(reportGenerateUtil.getReportFieldCollection(Template.class));
+    }
+
+    @Test
+    public void generateReportTest() {
+        List<String> dimensions = new ArrayList<>();
+        dimensions.add("dimension1");
+        dimensions.add("dimension2");
+        List<Map<String, Object>> result = reportGenerateUtil.generateReport(dimensions, Template.class);
+        System.out.println(result);
     }
 
 }
