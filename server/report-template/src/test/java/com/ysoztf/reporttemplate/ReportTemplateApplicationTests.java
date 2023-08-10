@@ -2,6 +2,7 @@ package com.ysoztf.reporttemplate;
 
 import com.ysoztf.reporttemplate.beans.Template;
 import com.ysoztf.reporttemplate.common.report.ReportGenerateUtil;
+import com.ysoztf.reporttemplate.common.report.benas.ReportQueryResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -26,7 +27,7 @@ class ReportTemplateApplicationTests {
         List<String> dimensions = new ArrayList<>();
         dimensions.add("dimension1");
         dimensions.add("dimension2");
-        List<Map<String, Object>> result = reportGenerateUtil.generateReport(dimensions, Template.class);
+        ReportQueryResult result = reportGenerateUtil.generateReport(dimensions, Template.class, 0, 10);
         System.out.println(result);
     }
 

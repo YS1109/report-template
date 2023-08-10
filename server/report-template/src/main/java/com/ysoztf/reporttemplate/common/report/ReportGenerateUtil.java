@@ -4,6 +4,7 @@ import com.sun.istack.NotNull;
 import com.ysoztf.reporttemplate.annotation.ReportEntityAnnotation;
 import com.ysoztf.reporttemplate.common.report.benas.ReportField;
 import com.ysoztf.reporttemplate.common.report.benas.ReportFieldCollection;
+import com.ysoztf.reporttemplate.common.report.benas.ReportQueryResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -11,6 +12,7 @@ import org.springframework.util.StringUtils;
 import javax.persistence.EntityManager;
 import javax.persistence.Tuple;
 import javax.persistence.TupleElement;
+import javax.persistence.TypedQuery;
 import javax.persistence.criteria.*;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -35,7 +37,10 @@ public class ReportGenerateUtil {
         this.entityManager = entityManager;
     }
 
-    public List<Map<String, Object>> generateReport(List<String> groupDimensions, Class<?> clazz) {
+    public ReportQueryResult generateReport(List<String> groupDimensions,
+                                                    Class<?> clazz,
+                                                    int pageNum,
+                                                    int pageSize) {
         // 获取报表实体类的所有维度和指标
         ReportFieldCollection reportFieldCollection = getReportFieldCollection(clazz);
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
@@ -49,10 +54,13 @@ public class ReportGenerateUtil {
                 criteriaBuilder, root);
         criteriaQuery.multiselect(selectExpressions);
         criteriaQuery.groupBy(groupExpressions);
-        List<Tuple> queryResult = entityManager.createQuery(criteriaQuery).getResultList();
+        TypedQuery<Tuple> tupleTypedQuery = entityManager.createQuery(criteriaQuery);
+        tupleTypedQuery.setFirstResult(pageNum);
+        tupleTypedQuery.setMaxResults(pageSize);
+        List<Tuple> queryResult = tupleTypedQuery.getResultList();
         // 将查询结果替换成Map
-        return convertTupleListToMapList(queryResult);
-        // TODO: 2023/8/5 支持条件查询和分页查询
+        List<Map<String, Object>> resultItems = convertTupleListToMapList(queryResult);
+        return buildReportQueryResult(resultItems,pageNum, pageSize, criteriaBuilder, root, groupExpressions);
     }
 
     /**
@@ -184,6 +192,46 @@ public class ReportGenerateUtil {
             result.add(map);
         }
         return result;
+    }
+
+
+    /**
+     * 构建分页查询的结果
+     * @param resultItems
+     * @param pageNum
+     * @param pageSize
+     * @param criteriaBuilder
+     * @param root
+     * @param groupExpressions
+     * @return
+     */
+    private ReportQueryResult buildReportQueryResult(List<Map<String, Object>> resultItems,
+                                                     int pageNum,
+                                                     int pageSize,
+                                                     @NotNull CriteriaBuilder criteriaBuilder,
+                                                     @NotNull Root<?> root,
+                                                     List<Expression<?>> groupExpressions) {
+        ReportQueryResult reportQueryResult = new ReportQueryResult();
+        reportQueryResult.setItems(resultItems);
+        if (pageNum < 0) {
+            pageNum = 0;
+        }
+        if (pageSize <= 0) {
+            pageSize = 50;
+        }
+        reportQueryResult.setPageNum(pageNum);
+        reportQueryResult.setPageSize(pageSize);
+        CriteriaQuery<Long> countQuery = criteriaBuilder.createQuery(Long.class);
+        Root<?> countRoot = countQuery.from(root.getJavaType());
+        countQuery.select(criteriaBuilder.count(countRoot));
+        if (groupExpressions != null && !groupExpressions.isEmpty()) {
+            countQuery.groupBy(groupExpressions);
+        }
+        long totalItemsNum = entityManager.createQuery(countQuery).getResultList().size();
+        long totalPageNum = (totalItemsNum + pageSize - 1) / pageSize;
+        reportQueryResult.setTotalItemsNum(totalItemsNum);
+        reportQueryResult.setTotalPageNum(totalPageNum);
+        return reportQueryResult;
     }
 
 }
