@@ -227,7 +227,7 @@ public class ReportGenerateUtil {
         if (groupExpressions != null && !groupExpressions.isEmpty()) {
             countQuery.groupBy(groupExpressions);
         }
-        long totalItemsNum = entityManager.createQuery(countQuery).getResultList().size();
+        long totalItemsNum = entityManager.createQuery(countQuery).getSingleResult();
         long totalPageNum = (totalItemsNum + pageSize - 1) / pageSize;
         reportQueryResult.setTotalItemsNum(totalItemsNum);
         reportQueryResult.setTotalPageNum(totalPageNum);
