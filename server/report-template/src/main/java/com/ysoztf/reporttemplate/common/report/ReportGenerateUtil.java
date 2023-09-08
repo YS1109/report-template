@@ -55,7 +55,7 @@ public class ReportGenerateUtil {
         criteriaQuery.multiselect(selectExpressions);
         criteriaQuery.groupBy(groupExpressions);
         TypedQuery<Tuple> tupleTypedQuery = entityManager.createQuery(criteriaQuery);
-        tupleTypedQuery.setFirstResult(pageNum);
+        tupleTypedQuery.setFirstResult(pageNum * pageSize);
         tupleTypedQuery.setMaxResults(pageSize);
         List<Tuple> queryResult = tupleTypedQuery.getResultList();
         // 将查询结果替换成Map
