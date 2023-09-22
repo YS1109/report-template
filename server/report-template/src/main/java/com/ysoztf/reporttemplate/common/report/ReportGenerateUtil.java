@@ -9,10 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import javax.persistence.EntityManager;
-import javax.persistence.Tuple;
-import javax.persistence.TupleElement;
-import javax.persistence.TypedQuery;
+import javax.persistence.*;
 import javax.persistence.criteria.*;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -28,39 +25,52 @@ import java.util.stream.Collectors;
  */
 @Component
 public class ReportGenerateUtil {
-    private final EntityManager entityManager;
+    private final EntityManagerFactory entityManagerFactory;
     private static final String DIMENSION_ANNOTATION_TYPE = "dimension";
     private static final String INDICATOR_ANNOTATION_TYPE = "indicator";
 
     @Autowired
-    public ReportGenerateUtil(EntityManager entityManager) {
-        this.entityManager = entityManager;
+    public ReportGenerateUtil(EntityManagerFactory entityManagerFactory) {
+        this.entityManagerFactory = entityManagerFactory;
+    }
+
+    private EntityManager getEntityManager() {
+        return entityManagerFactory.createEntityManager();
     }
 
     public ReportQueryResult generateReport(List<String> groupDimensions,
                                                     Class<?> clazz,
                                                     int pageNum,
                                                     int pageSize) {
-        // 获取报表实体类的所有维度和指标
-        ReportFieldCollection reportFieldCollection = getReportFieldCollection(clazz);
-        CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Tuple> criteriaQuery = criteriaBuilder.createTupleQuery();
-        Root<?> root = criteriaQuery.from(clazz);
-        // 构建group查询表达式
-        List<Expression<?>> groupExpressions = createGroupExpressions(reportFieldCollection.getDimensionList(),
-                groupDimensions, root);
-        // 构建select查询表达式
-        List<Selection<?>> selectExpressions = createSelectExpressions(reportFieldCollection, groupDimensions,
-                criteriaBuilder, root);
-        criteriaQuery.multiselect(selectExpressions);
-        criteriaQuery.groupBy(groupExpressions);
-        TypedQuery<Tuple> tupleTypedQuery = entityManager.createQuery(criteriaQuery);
-        tupleTypedQuery.setFirstResult(pageNum * pageSize);
-        tupleTypedQuery.setMaxResults(pageSize);
-        List<Tuple> queryResult = tupleTypedQuery.getResultList();
-        // 将查询结果替换成Map
-        List<Map<String, Object>> resultItems = convertTupleListToMapList(queryResult);
-        return buildReportQueryResult(resultItems,pageNum, pageSize, criteriaBuilder, root, groupExpressions);
+        EntityManager localEntityManager = getEntityManager();
+        try {
+            // 获取报表实体类的所有维度和指标
+            ReportFieldCollection reportFieldCollection = getReportFieldCollection(clazz);
+            CriteriaBuilder criteriaBuilder = localEntityManager.getCriteriaBuilder();
+            CriteriaQuery<Tuple> criteriaQuery = criteriaBuilder.createTupleQuery();
+            Root<?> root = criteriaQuery.from(clazz);
+            // 构建group查询表达式
+            List<Expression<?>> groupExpressions = createGroupExpressions(reportFieldCollection.getDimensionList(),
+                    groupDimensions, root);
+            // 构建select查询表达式
+            List<Selection<?>> selectExpressions = createSelectExpressions(reportFieldCollection, groupDimensions,
+                    criteriaBuilder, root);
+            criteriaQuery.multiselect(selectExpressions);
+            criteriaQuery.groupBy(groupExpressions);
+            TypedQuery<Tuple> tupleTypedQuery = localEntityManager.createQuery(criteriaQuery);
+            tupleTypedQuery.setFirstResult(pageNum * pageSize);
+            tupleTypedQuery.setMaxResults(pageSize);
+            List<Tuple> queryResult = tupleTypedQuery.getResultList();
+            // 将查询结果替换成Map
+            List<Map<String, Object>> resultItems = convertTupleListToMapList(queryResult);
+            return buildReportQueryResult(resultItems,pageNum, pageSize, criteriaBuilder, root, groupExpressions,
+                    localEntityManager);
+        } finally {
+            // 一定要保证entityManager被回收
+            if (localEntityManager != null) {
+                localEntityManager.close();
+            }
+        }
     }
 
     /**
@@ -210,7 +220,8 @@ public class ReportGenerateUtil {
                                                      int pageSize,
                                                      @NotNull CriteriaBuilder criteriaBuilder,
                                                      @NotNull Root<?> root,
-                                                     List<Expression<?>> groupExpressions) {
+                                                     List<Expression<?>> groupExpressions,
+                                                     EntityManager localEntityManager) {
         ReportQueryResult reportQueryResult = new ReportQueryResult();
         reportQueryResult.setItems(resultItems);
         if (pageNum < 0) {
@@ -227,7 +238,7 @@ public class ReportGenerateUtil {
         if (groupExpressions != null && !groupExpressions.isEmpty()) {
             countQuery.groupBy(groupExpressions);
         }
-        long totalItemsNum = entityManager.createQuery(countQuery).getSingleResult();
+        long totalItemsNum = localEntityManager.createQuery(countQuery).getSingleResult();
         long totalPageNum = (totalItemsNum + pageSize - 1) / pageSize;
         reportQueryResult.setTotalItemsNum(totalItemsNum);
         reportQueryResult.setTotalPageNum(totalPageNum);
